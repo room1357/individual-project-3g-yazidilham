@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
-  final String? username; // Tambahan: untuk menerima nama user dari Login
+  final String? username; // Menerima nama user dari login
   const HomeScreen({super.key, this.username});
 
   @override
@@ -17,7 +17,7 @@ class HomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {
-              // === Tambahan: Logout kembali ke halaman login ===
+              // Logout kembali ke halaman login
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/login',
@@ -66,6 +66,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/profile');
               },
             ),
             ListTile(
@@ -73,6 +74,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/settings');
               },
             ),
             const Divider(),
@@ -80,7 +82,6 @@ class HomeScreen extends StatelessWidget {
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
               onTap: () {
-                // === Tambahan: Logout lewat drawer ===
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/login',
@@ -111,14 +112,34 @@ class HomeScreen extends StatelessWidget {
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
                 children: [
-                  _buildDashboardCard('Profile', Icons.person, Colors.green),
-                  _buildDashboardCard('Messages', Icons.message, Colors.orange),
                   _buildDashboardCard(
+                    context,
+                    'Profile',
+                    Icons.person,
+                    Colors.green,
+                    '/profile',
+                  ),
+                  _buildDashboardCard(
+                    context,
+                    'Messages',
+                    Icons.message,
+                    Colors.orange,
+                    null,
+                  ),
+                  _buildDashboardCard(
+                    context,
                     'Settings',
                     Icons.settings,
                     Colors.purple,
+                    '/settings',
                   ),
-                  _buildDashboardCard('Help', Icons.help, Colors.red),
+                  _buildDashboardCard(
+                    context,
+                    'Help',
+                    Icons.help,
+                    Colors.red,
+                    '/about',
+                  ),
                 ],
               ),
             ),
@@ -128,12 +149,22 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDashboardCard(String title, IconData icon, Color color) {
+  Widget _buildDashboardCard(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    String? route,
+  ) {
     return Card(
       elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // Handle card tap
+          if (route != null) {
+            Navigator.pushNamed(context, route);
+          }
         },
         child: Container(
           padding: const EdgeInsets.all(16),
