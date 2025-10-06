@@ -6,6 +6,7 @@ import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/expense_screen.dart';
+import 'screens/advanced_expense_list_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
         '/settings': (context) => const SettingsScreen(),
         '/about': (context) => const AboutScreen(),
         '/expenses': (context) => const ExpenseScreen(),
+        '/expenses-advanced': (context) => const AdvancedExpenseListScreen(),
       },
     );
   }

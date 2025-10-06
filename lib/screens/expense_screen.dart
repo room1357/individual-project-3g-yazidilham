@@ -119,7 +119,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
                   setState(() {
                     if (isEdit) {
-                      expense!.title = _titleController.text;
+                      expense.title = _titleController.text;
                       expense.category = _categoryController.text;
                       expense.amount = amount;
                     } else {

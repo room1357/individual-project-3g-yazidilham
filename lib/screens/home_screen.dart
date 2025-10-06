@@ -6,7 +6,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ambil username dari argument navigator (jika dikirim lewat pushReplacementNamed)
     final args = ModalRoute.of(context)?.settings.arguments as String?;
     final displayName = username ?? args ?? 'User';
 
@@ -17,7 +16,6 @@ class HomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {
-              // Logout kembali ke halaman login
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/login',
@@ -57,9 +55,7 @@ class HomeScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.home),
               title: const Text('Home'),
-              onTap: () {
-                Navigator.pop(context);
-              },
+              onTap: () => Navigator.pop(context),
             ),
             ListTile(
               leading: const Icon(Icons.person),
@@ -124,14 +120,15 @@ class HomeScreen extends StatelessWidget {
                     'Expenses',
                     Icons.attach_money,
                     Colors.teal,
-                    '/expenses', // ✅ Tambah ini untuk buka halaman Expense
+                    '/expenses',
                   ),
+                  // ✅ Tambahan: Expenses (Advanced)
                   _buildDashboardCard(
                     context,
-                    'Settings',
-                    Icons.settings,
-                    Colors.purple,
-                    '/settings',
+                    'Expenses (Advanced)',
+                    Icons.analytics,
+                    Colors.indigo,
+                    '/expenses-advanced',
                   ),
                   _buildDashboardCard(
                     context,
@@ -179,6 +176,7 @@ class HomeScreen extends StatelessWidget {
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
