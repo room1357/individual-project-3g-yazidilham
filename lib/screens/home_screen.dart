@@ -121,10 +121,10 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _buildDashboardCard(
                     context,
-                    'Messages',
-                    Icons.message,
-                    Colors.orange,
-                    null,
+                    'Expenses',
+                    Icons.attach_money,
+                    Colors.teal,
+                    '/expenses', // ✅ Tambah ini untuk buka halaman Expense
                   ),
                   _buildDashboardCard(
                     context,
