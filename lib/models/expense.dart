@@ -1,11 +1,13 @@
 class Expense {
-  String title;
-  String description;
-  String category;
-  double amount;
-  DateTime date;
+  final String id;
+  final String title;
+  final String description;
+  final String category; // bisa diganti enum
+  final double amount;
+  final DateTime date;
 
   Expense({
+    required this.id,
     required this.title,
     required this.description,
     required this.category,
@@ -15,8 +17,10 @@ class Expense {
 }
 
 class ExpenseManager {
+  // Data contoh
   static List<Expense> expenses = [
     Expense(
+      id: 'e1',
       title: 'Makan Siang',
       description: 'Nasi goreng dan teh manis',
       category: 'Makanan',
@@ -24,6 +28,7 @@ class ExpenseManager {
       date: DateTime(2025, 10, 1),
     ),
     Expense(
+      id: 'e2',
       title: 'Transportasi',
       description: 'Naik ojek ke kampus',
       category: 'Transportasi',
@@ -31,6 +36,7 @@ class ExpenseManager {
       date: DateTime(2025, 10, 1),
     ),
     Expense(
+      id: 'e3',
       title: 'Kopi',
       description: 'Ngopi sore di kafe',
       category: 'Makanan',
@@ -38,6 +44,7 @@ class ExpenseManager {
       date: DateTime(2025, 10, 2),
     ),
     Expense(
+      id: 'e4',
       title: 'Beli Buku',
       description: 'Buku pemrograman mobile',
       category: 'Edukasi',
@@ -46,8 +53,9 @@ class ExpenseManager {
     ),
   ];
 
+  /// 1. Hitung total per kategori
   static Map<String, double> getTotalByCategory(List<Expense> expenses) {
-    Map<String, double> result = {};
+    final result = <String, double>{};
     for (var expense in expenses) {
       result[expense.category] =
           (result[expense.category] ?? 0) + expense.amount;
@@ -55,46 +63,43 @@ class ExpenseManager {
     return result;
   }
 
+  /// 2. Ambil pengeluaran tertinggi
   static Expense? getHighestExpense(List<Expense> expenses) {
     if (expenses.isEmpty) return null;
     return expenses.reduce((a, b) => a.amount > b.amount ? a : b);
   }
 
+  /// 3. Ambil pengeluaran bulan tertentu
   static List<Expense> getExpensesByMonth(
     List<Expense> expenses,
     int month,
     int year,
   ) {
     return expenses
-        .where(
-          (expense) => expense.date.month == month && expense.date.year == year,
-        )
+        .where((e) => e.date.month == month && e.date.year == year)
         .toList();
   }
 
+  /// 4. Cari pengeluaran dengan kata kunci
   static List<Expense> searchExpenses(List<Expense> expenses, String keyword) {
-    String lowerKeyword = keyword.toLowerCase();
-    return expenses
-        .where(
-          (expense) =>
-              expense.title.toLowerCase().contains(lowerKeyword) ||
-              expense.description.toLowerCase().contains(lowerKeyword) ||
-              expense.category.toLowerCase().contains(lowerKeyword),
-        )
-        .toList();
+    final lowerKeyword = keyword.toLowerCase();
+    return expenses.where((e) {
+      return e.title.toLowerCase().contains(lowerKeyword) ||
+          e.description.toLowerCase().contains(lowerKeyword) ||
+          e.category.toLowerCase().contains(lowerKeyword);
+    }).toList();
   }
 
-  static double getAverageDaily(List<Expense> expenses) {
+  /// 5. Hitung rata-rata per hari
+  static double getAverageDailyExpense(List<Expense> expenses) {
     if (expenses.isEmpty) return 0;
 
-    double total = expenses.fold(0, (sum, expense) => sum + expense.amount);
+    final total = expenses.fold(0.0, (sum, e) => sum + e.amount);
 
-    Set<String> uniqueDays =
+    // Hitung jumlah hari unik
+    final uniqueDays =
         expenses
-            .map(
-              (expense) =>
-                  '${expense.date.year}-${expense.date.month}-${expense.date.day}',
-            )
+            .map((e) => '${e.date.year}-${e.date.month}-${e.date.day}')
             .toSet();
 
     return total / uniqueDays.length;

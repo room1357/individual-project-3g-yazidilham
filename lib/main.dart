@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+// Import semua screen
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
@@ -7,8 +9,13 @@ import 'screens/settings_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/expense_screen.dart';
 import 'screens/advanced_expense_list_screen.dart';
+import 'screens/looping_screen.dart';
 
 void main() {
+  // 👉 Kalau mau test fungsi console dari LoopingExamples
+  // import 'utils/looping_examples.dart' lalu pakai:
+  // print("Total (for): ${LoopingExamples.calculateTotalTraditional(LoopingExamples.expenses)}");
+
   runApp(const MyApp());
 }
 
@@ -22,13 +29,13 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true, // opsional, bisa dihapus kalau pakai Flutter lama
+        useMaterial3: true, // opsional
       ),
 
       // Halaman awal aplikasi
       initialRoute: '/login',
 
-      // Daftar route untuk navigasi antar halaman
+      // Daftar route
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
@@ -38,6 +45,7 @@ class MyApp extends StatelessWidget {
         '/about': (context) => const AboutScreen(),
         '/expenses': (context) => const ExpenseScreen(),
         '/expenses-advanced': (context) => const AdvancedExpenseListScreen(),
+        '/looping': (context) => const LoopingScreen(),
       },
     );
   }
