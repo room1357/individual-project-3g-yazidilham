@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/export_service.dart'; // tombol Export CSV
 
 class HomeScreen extends StatelessWidget {
   final String? username; // Menerima nama user dari login
@@ -14,7 +15,17 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Home'),
         backgroundColor: Colors.blue,
         actions: [
+          // 🔹 Export CSV
           IconButton(
+            tooltip: 'Export CSV',
+            icon: const Icon(Icons.file_download),
+            onPressed: () async {
+              await ExportService.shareCsv();
+            },
+          ),
+          // 🔹 Logout
+          IconButton(
+            tooltip: 'Logout',
             onPressed: () {
               Navigator.pushNamedAndRemoveUntil(
                 context,
@@ -122,7 +133,6 @@ class HomeScreen extends StatelessWidget {
                     Colors.teal,
                     '/expenses',
                   ),
-                  // ✅ Tambahan: Expenses (Advanced)
                   _buildDashboardCard(
                     context,
                     'Expenses (Advanced)',
@@ -136,6 +146,29 @@ class HomeScreen extends StatelessWidget {
                     Icons.help,
                     Colors.red,
                     '/about',
+                  ),
+
+                  // ✅ Tambahan sesuai permintaan:
+                  _buildDashboardCard(
+                    context,
+                    'Tambah Expense',
+                    Icons.add,
+                    Colors.green,
+                    '/expense-add',
+                  ),
+                  _buildDashboardCard(
+                    context,
+                    'Kategori',
+                    Icons.category,
+                    Colors.brown,
+                    '/categories',
+                  ),
+                  _buildDashboardCard(
+                    context,
+                    'Statistik',
+                    Icons.pie_chart,
+                    Colors.deepPurple,
+                    '/statistics',
                   ),
                 ],
               ),

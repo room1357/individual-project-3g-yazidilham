@@ -2,7 +2,7 @@ class Expense {
   final String id;
   final String title;
   final String description;
-  final String category; // bisa diganti enum
+  final String categoryId; // bisa diganti enum
   final double amount;
   final DateTime date;
 
@@ -10,10 +10,28 @@ class Expense {
     required this.id,
     required this.title,
     required this.description,
-    required this.category,
+    required this.categoryId,
     required this.amount,
     required this.date,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'description': description,
+    'categoryId': categoryId,
+    'amount': amount,
+    'date': date.toIso8601String(),
+  };
+
+  factory Expense.fromJson(Map<String, dynamic> j) => Expense(
+    id: j['id'] as String,
+    title: j['title'] as String,
+    description: j['description'] as String,
+    categoryId: j['categoryId'] as String,
+    amount: (j['amount'] as num).toDouble(),
+    date: DateTime.parse(j['date'] as String),
+  );
 }
 
 class ExpenseManager {
@@ -23,7 +41,7 @@ class ExpenseManager {
       id: 'e1',
       title: 'Makan Siang',
       description: 'Nasi goreng dan teh manis',
-      category: 'Makanan',
+      categoryId: 'Makanan',
       amount: 25000,
       date: DateTime(2025, 10, 1),
     ),
@@ -31,7 +49,7 @@ class ExpenseManager {
       id: 'e2',
       title: 'Transportasi',
       description: 'Naik ojek ke kampus',
-      category: 'Transportasi',
+      categoryId: 'Transportasi',
       amount: 10000,
       date: DateTime(2025, 10, 1),
     ),
@@ -39,7 +57,7 @@ class ExpenseManager {
       id: 'e3',
       title: 'Kopi',
       description: 'Ngopi sore di kafe',
-      category: 'Makanan',
+      categoryId: 'Makanan',
       amount: 20000,
       date: DateTime(2025, 10, 2),
     ),
@@ -47,7 +65,7 @@ class ExpenseManager {
       id: 'e4',
       title: 'Beli Buku',
       description: 'Buku pemrograman mobile',
-      category: 'Edukasi',
+      categoryId: 'Edukasi',
       amount: 85000,
       date: DateTime(2025, 9, 29),
     ),
@@ -57,8 +75,8 @@ class ExpenseManager {
   static Map<String, double> getTotalByCategory(List<Expense> expenses) {
     final result = <String, double>{};
     for (var expense in expenses) {
-      result[expense.category] =
-          (result[expense.category] ?? 0) + expense.amount;
+      result[expense.categoryId] =
+          (result[expense.categoryId] ?? 0) + expense.amount;
     }
     return result;
   }
@@ -86,7 +104,7 @@ class ExpenseManager {
     return expenses.where((e) {
       return e.title.toLowerCase().contains(lowerKeyword) ||
           e.description.toLowerCase().contains(lowerKeyword) ||
-          e.category.toLowerCase().contains(lowerKeyword);
+          e.categoryId.toLowerCase().contains(lowerKeyword);
     }).toList();
   }
 
