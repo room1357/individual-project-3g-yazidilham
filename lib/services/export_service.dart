@@ -5,30 +5,32 @@ import 'package:share_plus/share_plus.dart';
 import '../data/expense_repository.dart';
 
 class ExportService {
-  static Future<File> exportCsv() async {
-    final list = ExpenseRepository.I.expenses;
-    final rows = <List<dynamic>>[
-      ['ID', 'Judul', 'Deskripsi', 'Kategori', 'Jumlah', 'Tanggal'],
-      ...list.map(
+  static Future<void> shareCsv() async {
+    final expenses = ExpenseRepository.I.expenses;
+
+    // Ubah ke List<List<String>> untuk CSV
+    final rows = [
+      ['Judul', 'Deskripsi', 'Kategori', 'Jumlah', 'Tanggal'],
+      ...expenses.map(
         (e) => [
-          e.id,
           e.title,
           e.description,
-          ExpenseRepository.I.categoryName(e.categoryId),
-          e.amount,
+          e.categoryId,
+          e.amount.toString(),
           e.date.toIso8601String(),
         ],
       ),
     ];
-    final csv = const ListToCsvConverter().convert(rows);
 
-    final dir = await getApplicationDocumentsDirectory();
+    // Generate CSV
+    final csvData = const ListToCsvConverter().convert(rows);
+
+    // Simpan ke file sementara
+    final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/expenses.csv');
-    return file.writeAsString(csv);
-  }
+    await file.writeAsString(csvData);
 
-  static Future<void> shareCsv() async {
-    final file = await exportCsv();
-    await Share.shareXFiles([XFile(file.path)], text: 'Data Pengeluaran');
+    // Share file
+    await Share.shareXFiles([XFile(file.path)], text: 'Export Data Expense');
   }
 }

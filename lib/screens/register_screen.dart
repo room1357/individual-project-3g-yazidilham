@@ -1,175 +1,196 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/user_service.dart';
+import '../models/user_profile.dart';
+import '../utils/app_routes.dart'; // berisi class AppRoutes
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final fullName = TextEditingController();
+  final username = TextEditingController();
+  final email = TextEditingController();
+  final password = TextEditingController();
+  final confirm = TextEditingController();
+  bool loading = false;
+
+  @override
+  void dispose() {
+    fullName.dispose();
+    username.dispose();
+    email.dispose();
+    password.dispose();
+    confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    // Validasi input
+    if ([
+      fullName,
+      username,
+      email,
+      password,
+      confirm,
+    ].any((c) => c.text.trim().isEmpty)) {
+      _snackError('Semua field wajib diisi');
+      return;
+    }
+    if (password.text.trim() != confirm.text.trim()) {
+      _snackError('Konfirmasi password tidak sama');
+      return;
+    }
+    if (password.text.trim().length < 6) {
+      _snackError('Password minimal 6 karakter');
+      return;
+    }
+
+    setState(() => loading = true);
+    try {
+      // Simpan user baru ke SharedPreferences
+      final u = await AuthService().register(
+        email.text.trim(),
+        password.text.trim(),
+        username.text.trim(),
+        fullName.text.trim(),
+      );
+
+      if (u != null) {
+        // Simpan profil user (opsional)
+        await UserService().saveProfile(
+          UserProfile(
+            uid: u.uid,
+            email: u.email,
+            username: u.username,
+            fullName: u.fullName,
+          ),
+        );
+
+        if (!mounted) return;
+
+        // Notif sukses (hijau)
+        _snackSuccess("Registrasi berhasil, silakan login!");
+
+        // Balik ke halaman LOGIN, bukan langsung Home
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.login,
+          (_) => false,
+        );
+      }
+    } catch (e) {
+      _snackError('Register gagal: $e');
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  // 🔹 Snackbar khusus error
+  void _snackError(String msg) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+  }
+
+  // 🔹 Snackbar khusus sukses
+  void _snackSuccess(String msg) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Tambahan: controller untuk ambil input
-    final TextEditingController fullNameController = TextEditingController();
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController usernameController = TextEditingController();
-    final TextEditingController passwordController = TextEditingController();
-    final TextEditingController confirmPasswordController =
-        TextEditingController();
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Register'),
-        backgroundColor: Colors.blue,
-      ),
+      appBar: AppBar(title: const Text('Register')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
-            Container(
-              width: 100,
-              height: 100,
-              decoration: const BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.person_add,
-                size: 50,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 32),
+            const Icon(Icons.person_add, size: 80, color: Colors.blue),
+            const SizedBox(height: 20),
 
-            // Full Name Field
             TextField(
-              controller: fullNameController,
+              controller: fullName,
               decoration: const InputDecoration(
                 labelText: 'Full Name',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Email Field
             TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.email),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Username Field
-            TextField(
-              controller: usernameController,
+              controller: username,
               decoration: const InputDecoration(
                 labelText: 'Username',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.account_circle),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Password Field
             TextField(
-              controller: passwordController,
+              controller: email,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: password,
               obscureText: true,
               decoration: const InputDecoration(
                 labelText: 'Password',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Confirm Password Field
             TextField(
-              controller: confirmPasswordController,
+              controller: confirm,
               obscureText: true,
               decoration: const InputDecoration(
                 labelText: 'Confirm Password',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock_outline),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Register Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  final fullName = fullNameController.text.trim();
-                  final email = emailController.text.trim();
-                  final username = usernameController.text.trim();
-                  final password = passwordController.text.trim();
-                  final confirmPassword = confirmPasswordController.text.trim();
-
-                  // === Tambahan: Validasi sederhana ===
-                  if (fullName.isEmpty ||
-                      email.isEmpty ||
-                      username.isEmpty ||
-                      password.isEmpty ||
-                      confirmPassword.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Semua field harus diisi!'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  if (password != confirmPassword) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Password dan konfirmasi tidak sama!'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // === Simulasi sukses register ===
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Registrasi berhasil! Silakan login.'),
-                      backgroundColor: Colors.green,
+            loading
+                ? const CircularProgressIndicator()
+                : SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _register,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                  );
-
-                  // Arahkan ke halaman login
-                  Future.delayed(const Duration(seconds: 1), () {
-                    Navigator.pushReplacementNamed(context, '/login');
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  'REGISTER',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    child: const Text(
+                      'REGISTER',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
             const SizedBox(height: 16),
 
-            // Login Link
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("Already have an account? "),
+                const Text("Sudah punya akun? "),
                 TextButton(
                   onPressed: () {
-                    // === Tambahan: kembali ke login ===
-                    Navigator.pushReplacementNamed(context, '/login');
+                    Navigator.pushReplacementNamed(context, AppRoutes.login);
                   },
                   child: const Text('Login'),
                 ),

@@ -1,4 +1,8 @@
+import 'dart:io'; // <-- tambah
 import 'package:flutter/material.dart';
+import 'package:csv/csv.dart'; // <-- tambah
+import 'package:path_provider/path_provider.dart'; // <-- tambah
+import 'package:share_plus/share_plus.dart'; // <-- tambah
 
 /// ------------ MODEL ------------
 class Expense {
@@ -21,6 +25,15 @@ class Expense {
   String get formattedAmount => 'Rp ${amount.toStringAsFixed(0)}';
   String get formattedDate =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  // <-- TAMBAH: baris untuk CSV
+  List<String> toCsvRow() => [
+    title,
+    description,
+    category,
+    amount.toStringAsFixed(2),
+    date.toIso8601String(),
+  ];
 }
 
 /// ------------ SCREEN ------------
@@ -99,11 +112,61 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
   }
 
   @override
+  void dispose() {
+    // bagus untuk hindari memory leak
+    searchController.dispose();
+    super.dispose();
+  }
+
+  // <-- TAMBAH: fungsi export ke CSV + share
+  Future<void> _exportExpensesToCsv(List<Expense> data) async {
+    // header + data
+    final rows = <List<dynamic>>[
+      ['title', 'description', 'category', 'amount', 'date'],
+      ...data.map((e) => e.toCsvRow()),
+    ];
+
+    final csvString = const ListToCsvConverter().convert(rows);
+
+    final dir = await getTemporaryDirectory();
+    final file = File(
+      '${dir.path}/expenses_${DateTime.now().millisecondsSinceEpoch}.csv',
+    );
+    await file.writeAsString(csvString, flush: true);
+
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'text/csv', name: 'expenses.csv')],
+      text: 'Export data pengeluaran',
+      subject: 'Expenses CSV',
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pengeluaran Advanced'),
         backgroundColor: Colors.blue,
+        // <-- TAMBAH: tombol Export CSV di AppBar
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export CSV',
+            onPressed: () async {
+              final data =
+                  filteredExpenses.isEmpty ? expenses : filteredExpenses;
+              if (data.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Belum ada data untuk diexport'),
+                  ),
+                );
+                return;
+              }
+              await _exportExpensesToCsv(data);
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

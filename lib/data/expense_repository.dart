@@ -24,11 +24,11 @@ class ExpenseRepository {
     if (rawCat == null) {
       // seed default categories
       _categories = [
-        Category(id: 'cat_food', name: 'Makanan'),
-        Category(id: 'cat_transport', name: 'Transportasi'),
-        Category(id: 'cat_util', name: 'Utilitas'),
-        Category(id: 'cat_fun', name: 'Hiburan'),
-        Category(id: 'cat_edu', name: 'Pendidikan'),
+        Category(id: 'cat_food', userId: 'local', name: 'Makanan'),
+        Category(id: 'cat_transport', userId: 'local', name: 'Transportasi'),
+        Category(id: 'cat_util', userId: 'local', name: 'Utilitas'),
+        Category(id: 'cat_fun', userId: 'local', name: 'Hiburan'),
+        Category(id: 'cat_edu', userId: 'local', name: 'Pendidikan'),
       ];
       await sp.setString(
         _kCategories,
@@ -93,8 +93,11 @@ class ExpenseRepository {
   Future<void> renameCategory(String id, String newName) async {
     final idx = _categories.indexWhere((c) => c.id == id);
     if (idx != -1) {
-      _categories[idx] = Category(id: _categories[idx].id, name: newName);
-      await _saveAll();
+      _categories[idx] = Category(
+        id: _categories[idx].id,
+        userId: _categories[idx].userId, // 🔹 ambil userId lama
+        name: newName,
+      );
     }
   }
 
@@ -103,7 +106,11 @@ class ExpenseRepository {
     final fallback = _categories.firstWhere(
       (c) => c.id == 'cat_other',
       orElse: () {
-        final other = Category(id: 'cat_other', name: 'Lainnya');
+        final other = Category(
+          id: 'cat_other',
+          userId: 'local', // atau pakai uid user login kalau multi-user
+          name: 'Lainnya',
+        );
         _categories.add(other);
         return other;
       },
@@ -135,7 +142,8 @@ class ExpenseRepository {
     return _categories
         .firstWhere(
           (c) => c.id == categoryId,
-          orElse: () => Category(id: 'cat_other', name: 'Lainnya'),
+          orElse:
+              () => Category(id: 'cat_other', userId: 'local', name: 'Lainnya'),
         )
         .name;
   }

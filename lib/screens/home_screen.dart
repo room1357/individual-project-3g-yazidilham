@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import '../services/export_service.dart'; // tombol Export CSV
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
+import '../services/export_service.dart';
+import '../main.dart';
 
 class HomeScreen extends StatelessWidget {
-  final String? username; // Menerima nama user dari login
-  const HomeScreen({super.key, this.username});
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments as String?;
-    final displayName = username ?? args ?? 'User';
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName = user?.email ?? user?.uid ?? 'User';
 
     return Scaffold(
       appBar: AppBar(
@@ -26,12 +28,15 @@ class HomeScreen extends StatelessWidget {
           // 🔹 Logout
           IconButton(
             tooltip: 'Logout',
-            onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (route) => false,
-              );
+            onPressed: () async {
+              await AuthService().logout();
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  AppRoutes.login,
+                  (_) => false,
+                );
+              }
             },
             icon: const Icon(Icons.logout),
           ),
@@ -73,7 +78,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/profile');
+                Navigator.pushNamed(context, AppRoutes.profile);
               },
             ),
             ListTile(
@@ -81,19 +86,22 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/settings');
+                Navigator.pushNamed(context, AppRoutes.settings);
               },
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                  (route) => false,
-                );
+              onTap: () async {
+                await AuthService().logout();
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppRoutes.login,
+                    (_) => false,
+                  );
+                }
               },
             ),
           ],
@@ -124,51 +132,49 @@ class HomeScreen extends StatelessWidget {
                     'Profile',
                     Icons.person,
                     Colors.green,
-                    '/profile',
+                    AppRoutes.profile,
                   ),
                   _buildDashboardCard(
                     context,
                     'Expenses',
                     Icons.attach_money,
                     Colors.teal,
-                    '/expenses',
+                    AppRoutes.expenses,
                   ),
                   _buildDashboardCard(
                     context,
                     'Expenses (Advanced)',
                     Icons.analytics,
                     Colors.indigo,
-                    '/expenses-advanced',
+                    AppRoutes.expensesAdvanced,
                   ),
                   _buildDashboardCard(
                     context,
                     'Help',
                     Icons.help,
                     Colors.red,
-                    '/about',
+                    AppRoutes.about,
                   ),
-
-                  // ✅ Tambahan sesuai permintaan:
                   _buildDashboardCard(
                     context,
                     'Tambah Expense',
                     Icons.add,
                     Colors.green,
-                    '/expense-add',
+                    AppRoutes.addExpense,
                   ),
                   _buildDashboardCard(
                     context,
                     'Kategori',
                     Icons.category,
                     Colors.brown,
-                    '/categories',
+                    AppRoutes.categories,
                   ),
                   _buildDashboardCard(
                     context,
                     'Statistik',
                     Icons.pie_chart,
                     Colors.deepPurple,
-                    '/statistics',
+                    AppRoutes.statistics,
                   ),
                 ],
               ),
@@ -184,18 +190,14 @@ class HomeScreen extends StatelessWidget {
     String title,
     IconData icon,
     Color color,
-    String? route,
+    String route,
   ) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          if (route != null) {
-            Navigator.pushNamed(context, route);
-          }
-        },
+        onTap: () => Navigator.pushNamed(context, route),
         child: Container(
           padding: const EdgeInsets.all(16),
           child: Column(

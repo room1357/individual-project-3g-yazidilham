@@ -1,184 +1,206 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
-import '../data/expense_repository.dart';
-import '../models/expense.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/category_service.dart';
+import '../services/expense_service.dart';
 import '../models/category.dart';
 
 class AddEditExpenseScreen extends StatefulWidget {
-  final Expense? initial;
-  const AddEditExpenseScreen({super.key, this.initial});
+  final String? expenseId; // null = tambah, isi = edit
+  const AddEditExpenseScreen({super.key, this.expenseId});
 
   @override
   State<AddEditExpenseScreen> createState() => _AddEditExpenseScreenState();
 }
 
 class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
-  final _form = GlobalKey<FormState>();
-  late TextEditingController _title;
-  late TextEditingController _desc;
-  late TextEditingController _amount;
-  late DateTime _date;
-  String? _categoryId;
+  final _title = TextEditingController();
+  final _desc = TextEditingController();
+  final _amount = TextEditingController();
+  final _sharedWithCtrl = TextEditingController(); // userId dipisahkan koma
+  DateTime _date = DateTime.now();
+  String? _selectedCategory;
 
-  @override
-  void initState() {
-    super.initState();
-    final e = widget.initial;
-    _title = TextEditingController(text: e?.title ?? '');
-    _desc = TextEditingController(text: e?.description ?? '');
-    _amount = TextEditingController(text: e?.amount.toString() ?? '');
-    _date = e?.date ?? DateTime.now();
-    _categoryId =
-        e?.categoryId ??
-        (ExpenseRepository.I.categories.isNotEmpty
-            ? ExpenseRepository.I.categories.first.id
-            : null);
-  }
+  final _srvCat = CategoryService();
+  final _srvExp = ExpenseService();
 
   @override
   void dispose() {
     _title.dispose();
     _desc.dispose();
     _amount.dispose();
+    _sharedWithCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
-    if (_categoryId == null) {
+  Future<void> _save(String uid) async {
+    if (_title.text.trim().isEmpty ||
+        _amount.text.trim().isEmpty ||
+        _selectedCategory == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Pilih kategori')));
-      return;
-    }
-    final amt = double.tryParse(_amount.text) ?? 0;
-    if (amt <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Jumlah tidak valid')));
+      ).showSnackBar(const SnackBar(content: Text("Lengkapi semua field")));
       return;
     }
 
-    if (widget.initial == null) {
-      final e = Expense(
-        id: const Uuid().v4(),
-        title: _title.text.trim(),
-        description: _desc.text.trim(),
-        categoryId: _categoryId!,
-        amount: amt,
-        date: _date,
-      );
-      await ExpenseRepository.I.addExpense(e);
-    } else {
-      final e = Expense(
-        id: widget.initial!.id,
-        title: _title.text.trim(),
-        description: _desc.text.trim(),
-        categoryId: _categoryId!,
-        amount: amt,
-        date: _date,
-      );
-      await ExpenseRepository.I.updateExpense(e);
+    final shared =
+        _sharedWithCtrl.text
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+
+    final amt = double.tryParse(_amount.text.trim()) ?? 0;
+    if (amt <= 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Jumlah tidak valid")));
+      return;
     }
-    if (context.mounted) Navigator.pop(context, true);
+
+    if (widget.expenseId == null) {
+      // Tambah baru
+      await _srvExp.create(
+        ownerId: uid, // 🔹 penting: siapa pemilik expense
+        title: _title.text.trim(),
+        description: _desc.text.trim(),
+        categoryId: _selectedCategory!,
+        amount: amt,
+        date: _date,
+        sharedWith: shared,
+      );
+    } else {
+      // Edit (update sebagian field)
+      await _srvExp.update(widget.expenseId!, {
+        'title': _title.text.trim(),
+        'description': _desc.text.trim(),
+        'categoryId': _selectedCategory!,
+        'amount': amt,
+        'date': _date.toIso8601String(),
+        'sharedWith': shared,
+      });
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final cats = ExpenseRepository.I.categories;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.initial == null ? 'Tambah Pengeluaran' : 'Edit Pengeluaran',
+          widget.expenseId == null ? 'Tambah Pengeluaran' : 'Edit Pengeluaran',
         ),
         backgroundColor: Colors.blue,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _form,
-          child: ListView(
-            children: [
-              TextFormField(
-                controller: _title,
-                decoration: const InputDecoration(
-                  labelText: 'Judul',
-                  border: OutlineInputBorder(),
-                ),
-                validator:
-                    (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
+        child: ListView(
+          children: [
+            TextField(
+              controller: _title,
+              decoration: const InputDecoration(
+                labelText: 'Judul',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _desc,
-                decoration: const InputDecoration(
-                  labelText: 'Deskripsi',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _desc,
+              decoration: const InputDecoration(
+                labelText: 'Deskripsi',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _categoryId,
-                items:
-                    cats
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Text(c.name),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (v) => setState(() => _categoryId = v),
-                decoration: const InputDecoration(
-                  labelText: 'Kategori',
-                  border: OutlineInputBorder(),
-                ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+
+            // 🔹 Dropdown kategori realtime per user
+            StreamBuilder<List<Category>>(
+              stream: _srvCat.streamByUser(uid),
+              builder: (_, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final cats = snapshot.data!;
+                if (cats.isEmpty) {
+                  return const Text("Belum ada kategori. Buat dulu.");
+                }
+                _selectedCategory ??= cats.first.id;
+                return DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  items:
+                      cats
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Text(c.name),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (v) => setState(() => _selectedCategory = v),
+                  decoration: const InputDecoration(
+                    labelText: 'Kategori',
+                    border: OutlineInputBorder(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _amount,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Jumlah (Rp)',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _amount,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Jumlah (Rp)',
-                  border: OutlineInputBorder(),
-                ),
-                validator:
-                    (v) =>
-                        (double.tryParse(v ?? '') ?? 0) <= 0
-                            ? 'Harus > 0'
-                            : null,
+            ),
+            const SizedBox(height: 12),
+
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Tanggal'),
+              subtitle: Text('${_date.day}-${_date.month}-${_date.year}'),
+              trailing: ElevatedButton(
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _date,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) setState(() => _date = picked);
+                },
+                child: const Text('Pilih'),
               ),
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Tanggal'),
-                subtitle: Text('${_date.day}-${_date.month}-${_date.year}'),
-                trailing: ElevatedButton(
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _date,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) setState(() => _date = picked);
-                  },
-                  child: const Text('Pilih'),
-                ),
+            ),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _sharedWithCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Bagikan ke (userId pisahkan dengan koma, opsional)',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _save,
+            ),
+            const SizedBox(height: 16),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _save(uid),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Simpan'),
+                child: const Text("SIMPAN"),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
-import '../data/expense_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/category_service.dart';
 import '../models/category.dart';
 
 class CategoryScreen extends StatefulWidget {
@@ -12,15 +12,19 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   final _nameCtrl = TextEditingController();
+  final _srv = CategoryService();
 
-  Future<void> _add() async {
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _add(String uid) async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
-    await ExpenseRepository.I.addCategory(
-      Category(id: const Uuid().v4(), name: name),
-    );
+    await _srv.create(userId: uid, name: name); // 🔹 pakai named parameter
     _nameCtrl.clear();
-    setState(() {});
   }
 
   Future<void> _rename(Category c) async {
@@ -47,8 +51,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
     );
     if (ok == true) {
-      await ExpenseRepository.I.renameCategory(c.id, ctrl.text.trim());
-      setState(() {});
+      await _srv.rename(c.id, ctrl.text.trim());
     }
   }
 
@@ -58,8 +61,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
       builder:
           (_) => AlertDialog(
             title: const Text('Hapus Kategori?'),
-            content: Text(
-              'Semua pengeluaran di kategori ini akan dipindah ke "Lainnya".',
+            content: const Text(
+              'Semua pengeluaran di kategori ini bisa terdampak.',
             ),
             actions: [
               TextButton(
@@ -74,14 +77,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
     );
     if (ok == true) {
-      await ExpenseRepository.I.deleteCategory(c.id);
-      setState(() {});
+      await _srv.delete(c.id); // 🔹 method sudah ada di CategoryService
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cats = ExpenseRepository.I.categories;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kategori'),
@@ -90,7 +93,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 Expanded(
@@ -103,31 +106,47 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(onPressed: _add, child: const Text('Tambah')),
+                FilledButton(
+                  onPressed: () => _add(uid),
+                  child: const Text('Tambah'),
+                ),
               ],
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: cats.length,
-              itemBuilder: (_, i) {
-                final c = cats[i];
-                return ListTile(
-                  title: Text(c.name),
-                  subtitle: Text(c.id),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () => _rename(c),
+            child: StreamBuilder<List<Category>>(
+              stream: _srv.streamByUser(uid), // 🔹 realtime kategori per user
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('Belum ada kategori.'));
+                }
+                final cats = snapshot.data!;
+                return ListView.separated(
+                  itemCount: cats.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final c = cats[i];
+                    return ListTile(
+                      title: Text(c.name),
+                      subtitle: Text("ID: ${c.id}"),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _rename(c),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _delete(c),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _delete(c),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             ),

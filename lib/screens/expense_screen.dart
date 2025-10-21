@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/export_service.dart';
 
 // Model untuk data pengeluaran
 class Expense {
@@ -186,6 +187,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       appBar: AppBar(
         title: const Text('Daftar Pengeluaran'),
         backgroundColor: Colors.blue,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () async {
+              await ExportService.shareCsv();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Data berhasil diexport ke CSV!')),
+              );
+            },
+          ),
+        ],
       ),
       body:
           _expenses.isEmpty

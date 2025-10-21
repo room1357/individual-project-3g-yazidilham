@@ -1,14 +1,72 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/user_service.dart';
+import '../models/user_profile.dart';
+import '../main.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Tambahkan controller untuk ambil nilai input
-    final TextEditingController usernameController = TextEditingController();
-    final TextEditingController passwordController = TextEditingController();
+  State<LoginScreen> createState() => _LoginScreenState();
+}
 
+class _LoginScreenState extends State<LoginScreen> {
+  final usernameController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    final username = usernameController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (username.isEmpty || password.isEmpty) {
+      _snack("Username dan Password tidak boleh kosong!");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      // 🔹 Cari email dari username
+      final profile = await UserService().fetchProfileByUsername(username);
+      if (profile == null) {
+        _snack("Username tidak ditemukan!");
+        return;
+      }
+
+      // login pakai email & password
+      final user = await AuthService().login(profile.email, password);
+
+      if (user != null) {
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.home,
+          (_) => false,
+        );
+      }
+    } catch (e) {
+      _snack("Login gagal: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Login'), backgroundColor: Colors.blue),
       body: Padding(
@@ -52,67 +110,36 @@ class LoginScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Login Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // === Tambahan: Validasi sederhana ===
-                  final username = usernameController.text.trim();
-                  final password = passwordController.text.trim();
-
-                  if (username.isEmpty || password.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Username dan Password tidak boleh kosong!',
-                        ),
-                        backgroundColor: Colors.red,
+            _isLoading
+                ? const CircularProgressIndicator()
+                : SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text(
+                      'LOGIN',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                    );
-                    return;
-                  }
-
-                  // === Simulasi login sukses ===
-                  if (username == 'admin' && password == '1234') {
-                    Navigator.pushReplacementNamed(
-                      context,
-                      '/home',
-                      arguments: username,
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Username atau password salah!'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  'LOGIN',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
-            ),
             const SizedBox(height: 16),
 
             // Register Link
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("Don't have an account? "),
+                const Text("Belum punya akun? "),
                 TextButton(
                   onPressed: () {
-                    // === Tambahan: navigasi ke halaman register ===
-                    Navigator.pushNamed(context, '/register');
+                    Navigator.pushReplacementNamed(context, AppRoutes.register);
                   },
                   child: const Text('Register'),
                 ),
