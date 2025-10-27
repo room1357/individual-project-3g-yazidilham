@@ -12,7 +12,7 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   final _nameCtrl = TextEditingController();
-  final _srv = CategoryService(); // <-- pastikan class ini ada (bagian B)
+  final _srv = CategoryService();
 
   @override
   void dispose() {
@@ -28,7 +28,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (mounted) setState(() {});
   }
 
-  // === GANTI: Category -> CategoryModel
+  // ====== Tetap sama tandatangan-nya, tapi ambil uid di dalam ======
   Future<void> _rename(CategoryModel c) async {
     final ctrl = TextEditingController(text: c.name);
     final ok = await showDialog<bool>(
@@ -53,12 +53,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
     );
     if (ok == true) {
-      await _srv.rename(c.id, ctrl.text.trim());
+      final user = await AuthService().currentUser();
+      final uid = user?.uid;
+      if (uid == null) return;
+
+      await _srv.rename(c.id, ctrl.text.trim(), userId: uid);
       if (mounted) setState(() {});
     }
   }
 
-  // === GANTI: Category -> CategoryModel
+  // ====== Tetap sama tandatangan-nya, tapi ambil uid di dalam ======
   Future<void> _delete(CategoryModel c) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -81,7 +85,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
     );
     if (ok == true) {
-      await _srv.delete(c.id);
+      final user = await AuthService().currentUser();
+      final uid = user?.uid;
+      if (uid == null) return;
+
+      await _srv.delete(c.id, userId: uid);
       if (mounted) setState(() {});
     }
   }
@@ -136,8 +144,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ),
               ),
               Expanded(
-                // === GANTI: List<Category> -> List<CategoryModel>
                 child: FutureBuilder<List<CategoryModel>>(
+                  // 👉 Service ini otomatis men-seed default:
+                  // Makanan, Transportasi, Utilitas, Hiburan, Pendidikan
                   future: _srv.listByUser(uid),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
