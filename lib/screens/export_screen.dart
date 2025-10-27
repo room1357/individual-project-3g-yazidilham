@@ -1,13 +1,44 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../utils/export_util.dart'; // pakai ExportCsv & ExportPdf dari utils kamu
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/auth_service.dart';
+import '../models/user_profile.dart';
+
+// ⚠️ Pakai model "Expense" dari folder models (bukan yg didefinisikan di screen)
+import '../models/expense.dart';
+
+// Util export milikmu (punya ExportCsv & ExportPdf dgn exportFromList)
+import '../utils/export_util.dart';
 
 class ExportScreen extends StatelessWidget {
   const ExportScreen({super.key});
 
+  // ---- Ambil data expense milik user aktif dari SharedPreferences ----
+  Future<List<Expense>> _loadCurrentUserExpenses() async {
+    final user = await AuthService().currentUser();
+    final uid = user?.uid ?? 'local-user';
+
+    final sp = await SharedPreferences.getInstance();
+    final raw = sp.getString('expenses_$uid');
+
+    if (raw == null || raw.isEmpty) return <Expense>[];
+
+    final List<dynamic> arr = jsonDecode(raw);
+    // JSON di AdvancedExpenseListScreen: title/description/category/amount/date
+    return arr.map((e) => Expense.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   Future<void> _doExportCsv(BuildContext context) async {
     try {
-      // Export semua data (utilitas kamu sudah handle share/save)
-      await ExportCsv.exportAll(filename: 'expenses.csv');
+      final list = await _loadCurrentUserExpenses();
+      if (list.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak ada data untuk diekspor.')),
+        );
+        return;
+      }
+      await ExportCsv.exportFromList(list, filename: 'expenses.csv');
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -24,7 +55,14 @@ class ExportScreen extends StatelessWidget {
 
   Future<void> _doExportPdf(BuildContext context) async {
     try {
-      await ExportPdf.exportAll(filename: 'expenses.pdf');
+      final list = await _loadCurrentUserExpenses();
+      if (list.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak ada data untuk diekspor.')),
+        );
+        return;
+      }
+      await ExportPdf.exportFromList(list, filename: 'expenses.pdf');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Export PDF dibuka (print/share)')),
@@ -55,19 +93,13 @@ class ExportScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
               elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info, color: Colors.blue),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Pilih format untuk mengekspor data pengeluaran Anda.',
-                        style: TextStyle(color: Colors.grey[800]),
-                      ),
-                    ),
-                  ],
+              child: const ListTile(
+                leading: Icon(Icons.info, color: Colors.blue),
+                title: Text(
+                  'Pilih format untuk mengekspor data pengeluaran Anda.',
+                ),
+                subtitle: Text(
+                  'Export berdasarkan data milik user yang sedang login.',
                 ),
               ),
             ),
@@ -89,8 +121,8 @@ class ExportScreen extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              'Tips: di Android/iOS file akan dibagikan lewat Share dialog.\n'
-              'Di Web, CSV akan otomatis diunduh, PDF dibuka via print dialog.',
+              'Tips: di Android/iOS file akan dibagikan via Share dialog.\n'
+              'Di Web, CSV auto diunduh, PDF dibuka via print dialog.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),

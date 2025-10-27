@@ -229,7 +229,7 @@ class HomeScreen extends StatelessWidget {
                         'Pesan',
                         Icons.message,
                         Colors.orange,
-                        null, // belum ada route
+                        AppRoutes.massage,
                       ),
                       _buildDashboardCard(
                         context,

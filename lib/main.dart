@@ -17,6 +17,7 @@ import 'screens/looping_screen.dart';
 import 'screens/add_edit_expense_screen.dart';
 import 'screens/category_screen.dart';
 import 'screens/statistics_screen.dart';
+import 'screens/massage_screen.dart';
 
 /// 🔹 Konsistensi route
 class AppRoutes {
@@ -33,6 +34,7 @@ class AppRoutes {
   static const String categories = '/categories';
   static const String statistics = '/statistics';
   static const String export = '/export';
+  static const String massage = '/massage';
 }
 
 Future<void> main() async {
@@ -115,6 +117,7 @@ class MyApp extends StatelessWidget {
         AppRoutes.categories: (_) => const CategoryScreen(),
         AppRoutes.statistics: (_) => const StatisticsScreen(),
         AppRoutes.export: (_) => const ExportScreen(),
+        AppRoutes.massage: (_) => const MassageScreen(),
       },
     );
   }
