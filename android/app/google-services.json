@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "879461059185",
+    "project_id": "multiuser-expense-ilham",
+    "storage_bucket": "multiuser-expense-ilham.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:879461059185:android:5a6a7d58474989ced669d0",
+        "android_client_info": {
+          "package_name": "com.example.pemrograman_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDW8SX78zVKZa3_geimA1fzlF5dWnmeYPI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

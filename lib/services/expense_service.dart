@@ -1,15 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import '../models/expense.dart';
 
 class ExpenseService {
-  final _col = FirebaseFirestore.instance.collection('expenses');
+  final Box _box = Hive.box('expenses');
 
+  /// Tambah menggunakan instance Expense langsung
   Future<String> add(Expense e) async {
-    await _col.doc(e.id).set(e.toJson());
+    await _box.put(e.id, e.toJson());
     return e.id;
   }
 
+  /// Buat Expense baru
   Future<String> create({
     required String ownerId,
     required String title,
@@ -30,44 +33,64 @@ class ExpenseService {
       date: date,
       sharedWith: sharedWith,
     );
-    await _col.doc(id).set(e.toJson());
+    await _box.put(id, e.toJson());
     return id;
   }
 
-  /// ✅ Tambahkan ini untuk edit expense
+  /// Update sebagian field
   Future<void> update(String id, Map<String, dynamic> data) async {
-    final d = Map<String, dynamic>.from(data);
+    final existing = _box.get(id);
+    if (existing == null) return;
 
-    // pastikan field date kalau masih DateTime diubah ke String ISO
-    if (d['date'] is DateTime) {
-      d['date'] = (d['date'] as DateTime).toIso8601String();
+    final Map<String, dynamic> row = Map<String, dynamic>.from(existing);
+    final Map<String, dynamic> patch = Map<String, dynamic>.from(data);
+
+    // Normalisasi date
+    if (patch['date'] is DateTime) {
+      patch['date'] = (patch['date'] as DateTime).toIso8601String();
     }
 
-    await _col.doc(id).update(d);
+    row.addAll(patch);
+    await _box.put(id, row);
   }
 
-  /// ✅ Ambil satu expense by id
+  /// Get satu expense
   Future<Expense?> getById(String id) async {
-    final doc = await _col.doc(id).get();
-    if (!doc.exists) return null;
-    return Expense.fromJson(doc.data()!);
+    final m = _box.get(id);
+    if (m == null) return null;
+    return Expense.fromJson(Map<String, dynamic>.from(m));
   }
 
-  // tampilkan semua pengeluaran yang melibatkan user (miliknya atau dibagikan kepadanya)
-  Stream<List<Expense>> streamForUser(String userId) {
-    final own = _col.where('ownerId', isEqualTo: userId).snapshots();
-    final shared = _col.where('sharedWith', arrayContains: userId).snapshots();
+  /// Ambil semua expense milik user atau yang dibagikan ke user (sekali ambil)
+  Future<List<Expense>> listForUser(String userId) async {
+    final all = _box.values.cast<dynamic>().toList();
+    final result = <Expense>[];
 
-    Stream<List<Expense>> map(QS) =>
-        QS.map((s) => s.docs.map((d) => Expense.fromJson(d.data())).toList());
+    for (final v in all) {
+      final m = Map<String, dynamic>.from(v as Map);
+      final exp = Expense.fromJson(m);
+      final owned = exp.ownerId == userId;
+      final shared = (exp.sharedWith).contains(userId);
+      if (owned || shared) result.add(exp);
+    }
+    return result;
+  }
 
-    return own.asyncMap((ownSnap) async {
-      final sharedSnap = await shared.first;
-      final a = ownSnap.docs.map((d) => Expense.fromJson(d.data())).toList();
-      final b = sharedSnap.docs.map((d) => Expense.fromJson(d.data())).toList();
+  /// Stream lokal: emit pertama kali + setiap ada perubahan pada box
+  Stream<List<Expense>> watchForUser(String userId) {
+    final controller = StreamController<List<Expense>>.broadcast();
 
-      final mapById = {for (var e in a) e.id: e, for (var e in b) e.id: e};
-      return mapById.values.toList();
-    });
+    Future<void> emit() async {
+      controller.add(await listForUser(userId));
+    }
+
+    // emit awal
+    emit();
+
+    // dengarkan perubahan pada box
+    final sub = _box.watch().listen((_) => emit());
+
+    controller.onCancel = () => sub.cancel();
+    return controller.stream;
   }
 }

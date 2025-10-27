@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+import 'services/auth_service.dart';
 
 // Import semua screen
 import 'screens/login_screen.dart';
@@ -34,7 +35,12 @@ class AppRoutes {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // ✅ Init Hive untuk data lokal (tanpa Firebase)
+  await Hive.initFlutter();
+  await Hive.openBox('expenses'); // dipakai ExpenseService
+  await Hive.openBox('categories'); // dipakai CategoryService
+
   runApp(const MyApp());
 }
 
@@ -51,8 +57,42 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      /// 🔹 Halaman awal harus login (bukan Home)
-      initialRoute: AppRoutes.login,
+      // 🔹 Wallpaper gradient global (punyamu tetap dipakai)
+      builder: (context, child) {
+        return Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF74ABE2), Color(0xFF5563DE)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: Container(color: Colors.white.withOpacity(0.05)),
+            ),
+            if (child != null) child,
+          ],
+        );
+      },
+
+      // 🔹 Auto-login: jika masih ada sesi → langsung Home, kalau tidak → Login
+      home: FutureBuilder(
+        future: AuthService().currentUser(),
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snap.data != null) {
+            return const HomeScreen(); // user masih login
+          }
+          return const LoginScreen(); // belum login
+        },
+      ),
 
       routes: {
         AppRoutes.login: (_) => const LoginScreen(),

@@ -5,24 +5,27 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.7.0
+  sdk: ">=3.7.0 <4.0.0"   # ✅ perbaikan: environment harus pakai range, bukan ^
 
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.2.2
+
+  # 🔹 Local storage & utils
   path_provider: ^2.1.4
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.2    # ✅ dipakai AuthService/UserService versi lokal
+  uuid: ^4.4.2                  # ✅ dipakai untuk id di ExpenseService
+  crypto: ^3.0.3                # (opsional) kalau masih dipakai untuk hashing
+
+  # 🔹 Fitur tambahan aplikasi kamu
   csv: ^5.0.2
   fl_chart: ^0.66.2
   share_plus: ^10.0.2
   pdf: ^3.11.0
   printing: ^5.13.1
-
-  # 🔹 Tambahan untuk multi-user & sync
-  firebase_core: ^3.3.0
-  firebase_auth: ^5.3.1
-  cloud_firestore: ^5.4.2
   provider: ^6.1.2
 
 dev_dependencies:
