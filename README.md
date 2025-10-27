@@ -58,44 +58,18 @@
 ## Demo APLIKASI
 
 <!-- GAMBAR -->
-<img
-  src="https://github.com/user-attachments/assets/8351b7b4-d757-4775-9ab3-7e278909ae74"
-  alt="login "
-  width="300"
-/>
-
-
-<img
-  src= "https://github.com/user-attachments/assets/c3094cb3-c023-48c4-9109-81cf915251da"
-  alt="signup"
-  width="300"
-/>
-
-
-<img
-  src= "https://github.com/user-attachments/assets/2adac72e-64cf-4942-936e-f0abd69285d4"
-  alt="Home"
-  width="300"
-/>
-
-<img
-  src= "https://github.com/user-attachments/assets/d24a6ccd-aa69-4ca5-9c63-0923ed82dd1f"
-  alt="statistic"
-  width="300"
-/>
-
-<img
-  src= "https://github.com/user-attachments/assets/3925b5b3-8a72-41e9-83dd-2e717f2fea60"
-  alt="Export"
-  width="300"
-/>
-
-<img
-  src= "https://github.com/user-attachments/assets/a4314d7c-5410-4633-a90d-c5916f5c1ade"
-  alt="API pesan"
-  width="300"
-/>
-
+🪪 Login
+<img src="https://github.com/user-attachments/assets/8351b7b4-d757-4775-9ab3-7e278909ae74" alt="login" width="300"/>
+📝 Signup
+<img src="https://github.com/user-attachments/assets/c3094cb3-c023-48c4-9109-81cf915251da" alt="signup" width="300"/>
+🏠 Home
+<img src="https://github.com/user-attachments/assets/2adac72e-64cf-4942-936e-f0abd69285d4" alt="Home" width="300"/>
+📊 Statistic
+<img src="https://github.com/user-attachments/assets/d24a6ccd-aa69-4ca5-9c63-0923ed82dd1f" alt="statistic" width="300"/>
+📤 Export
+<img src="https://github.com/user-attachments/assets/3925b5b3-8a72-41e9-83dd-2e717f2fea60" alt="Export" width="300"/>
+💬 API Pesan
+<img src="https://github.com/user-attachments/assets/a4314d7c-5410-4633-a90d-c5916f5c1ade" alt="API pesan" width="300"/>
 
 
 
