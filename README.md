@@ -6,8 +6,17 @@
 #### 2_SIB_3G
 
 ## Acknowledgements
+
+
+D/ProfileInstaller(31170): Installing profile for com.example.pemrograman_mobile
+Performing hot restart...                                               
+Restarted application in 1,648ms.
+I/flutter (31170): 🌱 Dummy 1 dibuat: budi@gmail.com / password123
+I/flutter (31170): 🌱 Dummy 2 dibuat: siti@gmail.com / rahasia456
   Future<void> addDummyUsers() async {
     final sp = await SharedPreferences.getInstance();
+
+    
 
     // 🔹 Dummy pertama
     final existing1 = sp.getString(_keyEmail);
