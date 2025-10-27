@@ -132,7 +132,7 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
     super.dispose();
   }
 
-  // EXPORT CSV
+  // EXPORT CSV (tetap)
   Future<void> _exportExpensesToCsv(List<Expense> data) async {
     final rows = <List<dynamic>>[
       ['title', 'description', 'category', 'amount', 'date'],
@@ -284,6 +284,8 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                               ),
                             ),
                             onTap: () => _showExpenseDetails(context, e),
+                            // NEW: aksi cepat via long-press
+                            onLongPress: () => _showItemMenu(e),
                           ),
                         );
                       },
@@ -299,7 +301,7 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
     );
   }
 
-  // ---------- LOGIC ----------
+  // ---------- LOGIC (tetap) ----------
 
   void _filterExpenses() {
     setState(() {
@@ -385,6 +387,248 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
     );
   }
 
+  // ---------- TAMBAHAN: Edit & Delete ----------
+
+  // NEW: menu aksi item (detail/edit/hapus)
+  void _showItemMenu(Expense e) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.visibility),
+                title: const Text('Lihat detail'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showExpenseDetails(context, e);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Edit'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showEditDialog(e);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Hapus', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(e);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // NEW: cari index di list `expenses` (tanpa id, jadi match by isi)
+  int _findExpenseIndex(Expense e) {
+    return expenses.indexWhere(
+      (x) =>
+          x.title == e.title &&
+          x.description == e.description &&
+          x.category == e.category &&
+          x.amount == e.amount &&
+          x.date.toIso8601String() == e.date.toIso8601String(),
+    );
+  }
+
+  // NEW: dialog edit
+  void _showEditDialog(Expense e) {
+    final idx = _findExpenseIndex(e);
+    if (idx == -1) return;
+
+    final titleCtrl = TextEditingController(text: e.title);
+    final descCtrl = TextEditingController(text: e.description);
+    final amountCtrl = TextEditingController(text: e.amount.toStringAsFixed(0));
+    String cat = e.category;
+    DateTime selectedDate = e.date;
+
+    String _fmt(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Edit Pengeluaran',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Judul',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Deskripsi',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: cat,
+                    items:
+                        (_categoryNames.isEmpty
+                                ? <String>['Makanan']
+                                : _categoryNames)
+                            .map(
+                              (c) => DropdownMenuItem(value: c, child: Text(c)),
+                            )
+                            .toList(),
+                    onChanged: (v) => setSheetState(() => cat = v ?? cat),
+                    decoration: const InputDecoration(
+                      labelText: 'Kategori',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Jumlah (Rp)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Tanggal'),
+                    subtitle: Text(_fmt(selectedDate)),
+                    trailing: ElevatedButton(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null)
+                          setSheetState(() => selectedDate = picked);
+                      },
+                      child: const Text('Pilih'),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final title = titleCtrl.text.trim();
+                      final desc = descCtrl.text.trim();
+                      final amt = double.tryParse(amountCtrl.text.trim());
+                      if (title.isEmpty || desc.isEmpty || (amt ?? 0) <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Lengkapi data dengan benar!'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setState(() {
+                        expenses[idx] = Expense(
+                          title: title,
+                          description: desc,
+                          category: cat,
+                          amount: amt!,
+                          date: selectedDate,
+                        );
+                        _filterExpenses(); // refresh tampilan
+                      });
+                      _saveExpenses();
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.save),
+                    label: const Text('Simpan Perubahan'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // NEW: konfirmasi hapus
+  void _confirmDelete(Expense e) async {
+    final idx = _findExpenseIndex(e);
+    if (idx == -1) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Hapus Pengeluaran?'),
+            content: Text('Judul: ${e.title}\nJumlah: ${e.formattedAmount}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Hapus'),
+              ),
+            ],
+          ),
+    );
+
+    if (ok == true) {
+      setState(() {
+        expenses.removeAt(idx);
+        _filterExpenses();
+      });
+      await _saveExpenses();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pengeluaran dihapus')));
+      }
+    }
+  }
+
+  // ---------- Dialog tambah (tetap, hanya dipanggil saat FAB) ----------
   void _showAddDialog() {
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
@@ -421,7 +665,6 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-
                   TextField(
                     controller: titleCtrl,
                     decoration: const InputDecoration(
@@ -430,7 +673,6 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-
                   TextField(
                     controller: descCtrl,
                     decoration: const InputDecoration(
@@ -439,15 +681,11 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-
-                  // 🔹 Dropdown kategori dari CategoryService
                   DropdownButtonFormField<String>(
                     value: cat,
                     items:
                         (_categoryNames.isEmpty
-                                ? <String>[
-                                  'Makanan',
-                                ] // fallback kalau belum sempat load
+                                ? <String>['Makanan']
                                 : _categoryNames)
                             .map(
                               (c) => DropdownMenuItem(value: c, child: Text(c)),
@@ -460,8 +698,6 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-
-                  // Jumlah
                   TextField(
                     controller: amountCtrl,
                     keyboardType: TextInputType.number,
@@ -471,8 +707,6 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-
-                  // Tanggal
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Tanggal'),
@@ -493,7 +727,6 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-
                   ElevatedButton.icon(
                     onPressed: () {
                       final title = titleCtrl.text.trim();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:pemrograman_mobile/screens/export_screen.dart';
 
 import 'services/auth_service.dart';
 
@@ -31,6 +32,7 @@ class AppRoutes {
   static const String addExpense = '/expense-add';
   static const String categories = '/categories';
   static const String statistics = '/statistics';
+  static const String export = '/export';
 }
 
 Future<void> main() async {
@@ -44,7 +46,7 @@ Future<void> main() async {
   // ✅ Tambahkan kode ini untuk membuat user dummy
   final auth = AuthService();
   await auth
-      .addDummyUser(); // 🌱 buat akun dummy (budi@gmail.com / password123)
+      .addDummyUsers(); // 🌱 buat akun dummy (budi@gmail.com / password123)
 
   runApp(const MyApp());
 }
@@ -112,6 +114,7 @@ class MyApp extends StatelessWidget {
         AppRoutes.addExpense: (_) => const AddEditExpenseScreen(),
         AppRoutes.categories: (_) => const CategoryScreen(),
         AppRoutes.statistics: (_) => const StatisticsScreen(),
+        AppRoutes.export: (_) => const ExportScreen(),
       },
     );
   }

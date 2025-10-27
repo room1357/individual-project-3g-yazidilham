@@ -1,4 +1,7 @@
+import 'dart:convert'; // ⬅️ tambah
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ⬅️ tambah
+
 import '../services/auth_service.dart';
 import '../services/export_service.dart';
 import '../models/user_profile.dart';
@@ -158,6 +161,19 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ====== KARTU TOTAL PENGELUARAN (per user) ======
+                FutureBuilder<_Totals>(
+                  future: _loadTotals(user.uid),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return _TotalCard.skeleton();
+                    }
+                    final data = snap.data ?? const _Totals(0, 0);
+                    return _TotalCard(total: data.total, count: data.count);
+                  },
+                ),
+                const SizedBox(height: 20),
+
                 const Text(
                   'Dashboard',
                   style: TextStyle(
@@ -180,13 +196,6 @@ class HomeScreen extends StatelessWidget {
                         Colors.green,
                         AppRoutes.profile,
                       ),
-                      // _buildDashboardCard(
-                      //   context,
-                      //   'Massages',
-                      //   Icons.attach_money,
-                      //   Colors.teal,
-                      //   AppRoutes.expenses,
-                      // ),
                       _buildDashboardCard(
                         context,
                         'Expenses',
@@ -201,13 +210,6 @@ class HomeScreen extends StatelessWidget {
                         Colors.red,
                         AppRoutes.about,
                       ),
-                      // _buildDashboardCard(
-                      //   context,
-                      //   'Tambah Expense',
-                      //   Icons.add,
-                      //   Colors.green,
-                      //   AppRoutes.addExpense,
-                      // ),
                       _buildDashboardCard(
                         context,
                         'Kategori',
@@ -222,21 +224,19 @@ class HomeScreen extends StatelessWidget {
                         Colors.deepPurple,
                         AppRoutes.statistics,
                       ),
-
                       _buildDashboardCard(
                         context,
                         'Pesan',
                         Icons.message,
                         Colors.orange,
-                        null, // tidak ada route dulu
+                        null, // belum ada route
                       ),
-
                       _buildDashboardCard(
                         context,
                         'Export',
                         Icons.import_export,
                         Colors.deepOrange,
-                        null, // tidak ada route dulu
+                        AppRoutes.export,
                       ),
                     ],
                   ),
@@ -254,14 +254,13 @@ class HomeScreen extends StatelessWidget {
     String title,
     IconData icon,
     Color color,
-    String? route, // ubah: boleh null
+    String? route,
   ) {
     return GestureDetector(
       onTap: () {
         if (route != null) {
           Navigator.pushNamed(context, route);
         } else {
-          // 🔹 Kalau route null → tampilkan pesan dummy
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Halaman "$title" belum tersedia.'),
@@ -292,6 +291,138 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// ===== Helper: ambil total & jumlah transaksi dari SharedPreferences (per user)
+Future<_Totals> _loadTotals(String uid) async {
+  final sp = await SharedPreferences.getInstance();
+  final raw = sp.getString('expenses_$uid');
+  if (raw == null || raw.isEmpty) return const _Totals(0, 0);
+
+  final List<dynamic> arr = jsonDecode(raw);
+  double total = 0;
+  for (final e in arr) {
+    final amt = (e['amount'] as num?)?.toDouble() ?? 0.0;
+    total += amt;
+  }
+  return _Totals(total, arr.length);
+}
+
+class _Totals {
+  final double total;
+  final int count;
+  const _Totals(this.total, this.count);
+}
+
+/// ===== Widget kartu total yang rapi
+class _TotalCard extends StatelessWidget {
+  final double total;
+  final int count;
+  const _TotalCard({required this.total, required this.count});
+
+  static Widget skeleton() => Container(
+    height: 90,
+    decoration: BoxDecoration(
+      color: Colors.blue.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    padding: const EdgeInsets.all(16),
+    child: const Row(
+      children: [
+        Expanded(child: _ShimmerBox(width: double.infinity, height: 20)),
+        SizedBox(width: 16),
+        _ShimmerBox(width: 90, height: 32),
+      ],
+    ),
+  );
+
+  String _rp(double v) => 'Rp ${v.toStringAsFixed(0)}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 90,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF74ABE2), Color(0xFF5563DE)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.account_balance_wallet,
+            color: Colors.white,
+            size: 36,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Total Pengeluaran',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _rp(total),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$count trx',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatelessWidget {
+  final double width;
+  final double height;
+  const _ShimmerBox({required this.width, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(8),
       ),
     );
   }
