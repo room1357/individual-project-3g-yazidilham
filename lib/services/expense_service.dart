@@ -1,96 +1,124 @@
+// lib/services/expense_service.dart
 import 'dart:async';
-import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import '../models/expense.dart';
 
+/// Service sederhana yang menyimpan data di memori (bisa kamu ganti ke Hive/Firestore nanti).
 class ExpenseService {
-  final Box _box = Hive.box('expenses');
+  // ====== SINGLETON OPSIONAL (biar gampang diakses) ======
+  static final ExpenseService _singleton = ExpenseService._internal();
+  factory ExpenseService() => _singleton;
 
-  /// Tambah menggunakan instance Expense langsung
-  Future<String> add(Expense e) async {
-    await _box.put(e.id, e.toJson());
-    return e.id;
+  // Named constructor jika mau inisialisasi khusus (mis. dari storage lain)
+  ExpenseService.withSeed(List<Expense> seed) {
+    _items = [...seed];
+    _emit();
   }
 
-  /// Buat Expense baru
-  Future<String> create({
-    required String ownerId,
-    required String title,
-    required String description,
-    required String categoryId,
-    required double amount,
-    required DateTime date,
-    List<String> sharedWith = const [],
-  }) async {
-    final id = const Uuid().v4();
-    final e = Expense(
-      id: id,
-      ownerId: ownerId,
-      title: title,
-      description: description,
-      categoryId: categoryId,
-      amount: amount,
-      date: date,
-      sharedWith: sharedWith,
+  ExpenseService._internal();
+
+  // ====== STATE & STREAM ======
+  final _uuid = const Uuid();
+  final _ctrl = StreamController<List<Expense>>.broadcast();
+  List<Expense> _items = []; // simpan semua expense di memori
+
+  /// Stream semua expense (tanpa filter user)
+  Stream<List<Expense>> watchAll() => _ctrl.stream;
+
+  /// Stream dengan filter userId (kalau kamu pakai multi-user)
+  Stream<List<Expense>> watchForUser(String uid) async* {
+    // kalau belum ada kolom userId di model, untuk sementara balikin semua
+    // Nanti ganti filter: where(e.userId == uid)
+    yield* _ctrl.stream;
+  }
+
+  /// Alias agar kompatibel dengan pemanggilan lama: watchforUser(...)
+  Stream<List<Expense>> watchforUser(String uid) => watchForUser(uid);
+
+  // ====== EMIT HELPER ======
+  void _emit() {
+    // sort default: terbaru di atas
+    final sorted = [..._items]..sort((a, b) => b.date.compareTo(a.date));
+    _ctrl.add(sorted);
+  }
+
+  // ====== QUERY SINKRON (untuk pemanggilan non-stream) ======
+  List<Expense> list({String? categoryId}) {
+    final data =
+        categoryId == null
+            ? _items
+            : _items.where((e) => e.categoryId == categoryId).toList();
+    data.sort((a, b) => b.date.compareTo(a.date));
+    return data;
+  }
+
+  Expense? getById(String id) {
+    return _items.cast<Expense?>().firstWhere(
+      (e) => e?.id == id,
+      orElse: () => null,
     );
-    await _box.put(id, e.toJson());
-    return id;
   }
 
-  /// Update sebagian field
-  Future<void> update(String id, Map<String, dynamic> data) async {
-    final existing = _box.get(id);
-    if (existing == null) return;
+  // ====== MUTASI ======
+  Future<Expense> add({
+    required String title,
+    required double amount,
+    required String categoryId,
+    required DateTime date,
+    String? description,
+    String? id,
+  }) async {
+    final e = Expense(
+      id: id ?? _uuid.v4(),
+      title: title,
+      amount: amount,
+      categoryId: categoryId,
+      date: date,
+      description: description,
+    );
+    _items.add(e);
+    _emit();
+    return e;
+  }
 
-    final Map<String, dynamic> row = Map<String, dynamic>.from(existing);
-    final Map<String, dynamic> patch = Map<String, dynamic>.from(data);
-
-    // Normalisasi date
-    if (patch['date'] is DateTime) {
-      patch['date'] = (patch['date'] as DateTime).toIso8601String();
+  Future<void> upsert(Expense e) async {
+    final idx = _items.indexWhere((x) => x.id == e.id);
+    if (idx >= 0) {
+      _items[idx] = e;
+    } else {
+      _items.add(e);
     }
-
-    row.addAll(patch);
-    await _box.put(id, row);
+    _emit();
   }
 
-  /// Get satu expense
-  Future<Expense?> getById(String id) async {
-    final m = _box.get(id);
-    if (m == null) return null;
-    return Expense.fromJson(Map<String, dynamic>.from(m));
+  Future<void> update({
+    required String id,
+    String? title,
+    double? amount,
+    String? categoryId,
+    DateTime? date,
+    String? description,
+  }) async {
+    final idx = _items.indexWhere((e) => e.id == id);
+    if (idx < 0) return;
+    final cur = _items[idx];
+    _items[idx] = cur.copyWith(
+      title: title,
+      amount: amount,
+      categoryId: categoryId,
+      date: date,
+      description: description,
+    );
+    _emit();
   }
 
-  /// Ambil semua expense milik user atau yang dibagikan ke user (sekali ambil)
-  Future<List<Expense>> listForUser(String userId) async {
-    final all = _box.values.cast<dynamic>().toList();
-    final result = <Expense>[];
-
-    for (final v in all) {
-      final m = Map<String, dynamic>.from(v as Map);
-      final exp = Expense.fromJson(m);
-      final owned = exp.ownerId == userId;
-      final shared = (exp.sharedWith).contains(userId);
-      if (owned || shared) result.add(exp);
-    }
-    return result;
+  Future<void> delete(String id) async {
+    _items.removeWhere((e) => e.id == id);
+    _emit();
   }
 
-  /// Stream lokal: emit pertama kali + setiap ada perubahan pada box
-  Stream<List<Expense>> watchForUser(String userId) {
-    final controller = StreamController<List<Expense>>.broadcast();
-
-    Future<void> emit() async {
-      controller.add(await listForUser(userId));
-    }
-
-    // emit awal
-    emit();
-
-    // dengarkan perubahan pada box
-    final sub = _box.watch().listen((_) => emit());
-
-    controller.onCancel = () => sub.cancel();
-    return controller.stream;
+  // ====== DISPOSE (opsional) ======
+  void dispose() {
+    _ctrl.close();
   }
 }

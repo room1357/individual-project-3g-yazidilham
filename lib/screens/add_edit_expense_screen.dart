@@ -44,13 +44,6 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
       return;
     }
 
-    final shared =
-        _sharedWithCtrl.text
-            .split(',')
-            .map((s) => s.trim())
-            .where((s) => s.isNotEmpty)
-            .toList();
-
     final amt = double.tryParse(_amount.text.trim()) ?? 0;
     if (amt <= 0) {
       ScaffoldMessenger.of(
@@ -60,26 +53,25 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
     }
 
     if (widget.expenseId == null) {
-      // Tambah baru
-      await _srvExp.create(
-        ownerId: uid, // 🔹 penting: siapa pemilik expense
+      // ➜ pakai add(...)
+      await _srvExp.add(
         title: _title.text.trim(),
-        description: _desc.text.trim(),
-        categoryId: _selectedCategory!,
         amount: amt,
+        categoryId: _selectedCategory!, // id kategori
         date: _date,
-        sharedWith: shared,
+        description: _desc.text.trim(),
+        // NOTE: kalau service-mu belum mendukung sharedWith/ownerId, abaikan dulu
       );
     } else {
-      // Edit (update sebagian field)
-      await _srvExp.update(widget.expenseId!, {
-        'title': _title.text.trim(),
-        'description': _desc.text.trim(),
-        'categoryId': _selectedCategory!,
-        'amount': amt,
-        'date': _date.toIso8601String(),
-        'sharedWith': shared,
-      });
+      // ➜ pakai update(...) dgn named params
+      await _srvExp.update(
+        id: widget.expenseId!,
+        title: _title.text.trim(),
+        amount: amt,
+        categoryId: _selectedCategory!,
+        date: _date,
+        description: _desc.text.trim(),
+      );
     }
 
     if (!mounted) return;
@@ -139,7 +131,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                 const SizedBox(height: 12),
 
                 // 🔹 Dropdown kategori via FutureBuilder (Hive)
-                FutureBuilder<List<Category>>(
+                FutureBuilder<List<CategoryModel>>(
                   future: _srvCat.listByUser(uid),
                   builder: (_, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {

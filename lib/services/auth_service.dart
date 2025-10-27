@@ -12,6 +12,24 @@ class AuthService {
   // Status sesi login (boleh dihapus saat logout)
   static const _keySessionUid = 'session_uid';
 
+  // ======================================================
+  // ✅ FUNGSI TAMBAHAN: BUAT DATA DUMMY
+  // ======================================================
+  Future<void> addDummyUser() async {
+    final sp = await SharedPreferences.getInstance();
+    final existingEmail = sp.getString(_keyEmail);
+    if (existingEmail == null) {
+      await sp.setString(_keyUid, 'dummy-001');
+      await sp.setString(_keyEmail, 'budi@gmail.com');
+      await sp.setString(_keyPassword, 'password123');
+      await sp.setString(_keyUsername, 'budi');
+      await sp.setString(_keyFullName, 'Budi Santoso');
+      print('🌱 Dummy user berhasil dibuat (budi@gmail.com / password123)');
+    } else {
+      print('👍 Dummy user sudah ada, tidak perlu menambah lagi.');
+    }
+  }
+
   // REGISTER user baru
   Future<UserProfile?> register(
     String email,
@@ -21,7 +39,7 @@ class AuthService {
   ) async {
     final sp = await SharedPreferences.getInstance();
 
-    // Cegah duplikasi email sederhana (single account)
+    // Cegah duplikasi email sederhana
     final existingEmail = sp.getString(_keyEmail);
     if (existingEmail != null && existingEmail == email.trim()) {
       throw Exception('Email sudah terdaftar.');
@@ -75,7 +93,7 @@ class AuthService {
     }
   }
 
-  // LOGOUT (hapus hanya sesi, JANGAN clear semua)
+  // LOGOUT (hapus hanya sesi)
   Future<void> logout() async {
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_keySessionUid);

@@ -41,6 +41,11 @@ Future<void> main() async {
   await Hive.openBox('expenses'); // dipakai ExpenseService
   await Hive.openBox('categories'); // dipakai CategoryService
 
+  // ✅ Tambahkan kode ini untuk membuat user dummy
+  final auth = AuthService();
+  await auth
+      .addDummyUser(); // 🌱 buat akun dummy (budi@gmail.com / password123)
+
   runApp(const MyApp());
 }
 
@@ -57,7 +62,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // 🔹 Wallpaper gradient global (punyamu tetap dipakai)
+      // 🔹 Wallpaper gradient global
       builder: (context, child) {
         return Stack(
           children: [

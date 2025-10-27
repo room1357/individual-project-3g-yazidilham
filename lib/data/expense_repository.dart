@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/expense.dart';
-import '../models/category.dart';
 
+import '../models/expense.dart';
+import '../models/category.dart'; // berisi CategoryModel
+
+/// Repository sederhana berbasis SharedPreferences (lokal)
 class ExpenseRepository {
   ExpenseRepository._();
   static final ExpenseRepository I = ExpenseRepository._();
@@ -11,24 +13,28 @@ class ExpenseRepository {
   static const String _kCategories = 'categories_v1';
 
   List<Expense> _expenses = [];
-  List<Category> _categories = [];
+  List<CategoryModel> _categories = [];
 
   List<Expense> get expenses => List.unmodifiable(_expenses);
-  List<Category> get categories => List.unmodifiable(_categories);
+  List<CategoryModel> get categories => List.unmodifiable(_categories);
 
+  // ------------------------------------------------------------
+  // Init (load dari SharedPreferences) + seeding kategori awal
+  // ------------------------------------------------------------
   Future<void> init() async {
     final sp = await SharedPreferences.getInstance();
 
     // --- Categories ---
     final rawCat = sp.getString(_kCategories);
     if (rawCat == null) {
-      // seed default categories
+      // seed default categories (sertakan 'cat_other' untuk fallback)
       _categories = [
-        Category(id: 'cat_food', userId: 'local', name: 'Makanan'),
-        Category(id: 'cat_transport', userId: 'local', name: 'Transportasi'),
-        Category(id: 'cat_util', userId: 'local', name: 'Utilitas'),
-        Category(id: 'cat_fun', userId: 'local', name: 'Hiburan'),
-        Category(id: 'cat_edu', userId: 'local', name: 'Pendidikan'),
+        CategoryModel(id: 'cat_food', name: 'Makanan'),
+        CategoryModel(id: 'cat_transport', name: 'Transportasi'),
+        CategoryModel(id: 'cat_util', name: 'Utilitas'),
+        CategoryModel(id: 'cat_fun', name: 'Hiburan'),
+        CategoryModel(id: 'cat_edu', name: 'Pendidikan'),
+        CategoryModel(id: 'cat_other', name: 'Lainnya'),
       ];
       await sp.setString(
         _kCategories,
@@ -38,8 +44,14 @@ class ExpenseRepository {
       final List<dynamic> list = jsonDecode(rawCat) as List<dynamic>;
       _categories =
           list
-              .map((e) => Category.fromJson(e as Map<String, dynamic>))
+              .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
               .toList();
+
+      // pastikan ada fallback 'cat_other'
+      if (_categories.indexWhere((c) => c.id == 'cat_other') == -1) {
+        _categories.add(CategoryModel(id: 'cat_other', name: 'Lainnya'));
+        await _saveAll();
+      }
     }
 
     // --- Expenses ---
@@ -65,7 +77,9 @@ class ExpenseRepository {
     );
   }
 
-  // ---------- Expense CRUD ----------
+  // -------------------------
+  // Expense CRUD
+  // -------------------------
   Future<void> addExpense(Expense e) async {
     _expenses.add(e);
     await _saveAll();
@@ -84,8 +98,12 @@ class ExpenseRepository {
     await _saveAll();
   }
 
-  // ---------- Category CRUD ----------
-  Future<void> addCategory(Category c) async {
+  // -------------------------
+  // Category CRUD
+  // -------------------------
+  Future<void> addCategory(CategoryModel c) async {
+    // hindari duplikasi id
+    if (_categories.any((x) => x.id == c.id)) return;
     _categories.add(c);
     await _saveAll();
   }
@@ -93,57 +111,47 @@ class ExpenseRepository {
   Future<void> renameCategory(String id, String newName) async {
     final idx = _categories.indexWhere((c) => c.id == id);
     if (idx != -1) {
-      _categories[idx] = Category(
-        id: _categories[idx].id,
-        userId: _categories[idx].userId, // 🔹 ambil userId lama
-        name: newName,
-      );
+      _categories[idx] = CategoryModel(id: _categories[idx].id, name: newName);
+      await _saveAll(); // ⬅️ tadinya kelupaan
     }
   }
 
   Future<void> deleteCategory(String id) async {
-    // fallback ke "Lainnya" jika kategori dihapus
-    final fallback = _categories.firstWhere(
-      (c) => c.id == 'cat_other',
-      orElse: () {
-        final other = Category(
-          id: 'cat_other',
-          userId: 'local', // atau pakai uid user login kalau multi-user
-          name: 'Lainnya',
-        );
-        _categories.add(other);
-        return other;
-      },
-    );
+    // jangan izinkan menghapus fallback
+    if (id == 'cat_other') return;
 
+    // siapkan fallback
+    CategoryModel fallback = CategoryModel(id: 'cat_other', name: 'Lainnya');
+    final fIdx = _categories.indexWhere((c) => c.id == fallback.id);
+    if (fIdx == -1) {
+      _categories.add(fallback);
+    } else {
+      fallback = _categories[fIdx];
+    }
+
+    // remap semua expense yang pakai kategori ini ke fallback
     _expenses =
         _expenses
             .map(
               (e) =>
-                  e.categoryId == id
-                      ? Expense(
-                        id: e.id,
-                        title: e.title,
-                        description: e.description,
-                        categoryId: fallback.id,
-                        amount: e.amount,
-                        date: e.date,
-                      )
-                      : e,
+                  e.categoryId == id ? e.copyWith(categoryId: fallback.id) : e,
             )
             .toList();
 
+    // hapus kategori
     _categories.removeWhere((c) => c.id == id);
+
     await _saveAll();
   }
 
-  // ---------- Helpers ----------
+  // -------------------------
+  // Helpers & Aggregations
+  // -------------------------
   String categoryName(String categoryId) {
     return _categories
         .firstWhere(
           (c) => c.id == categoryId,
-          orElse:
-              () => Category(id: 'cat_other', userId: 'local', name: 'Lainnya'),
+          orElse: () => CategoryModel(id: 'cat_other', name: 'Lainnya'),
         )
         .name;
   }

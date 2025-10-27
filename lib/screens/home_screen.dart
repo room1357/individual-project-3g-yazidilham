@@ -180,16 +180,16 @@ class HomeScreen extends StatelessWidget {
                         Colors.green,
                         AppRoutes.profile,
                       ),
+                      // _buildDashboardCard(
+                      //   context,
+                      //   'Massages',
+                      //   Icons.attach_money,
+                      //   Colors.teal,
+                      //   AppRoutes.expenses,
+                      // ),
                       _buildDashboardCard(
                         context,
                         'Expenses',
-                        Icons.attach_money,
-                        Colors.teal,
-                        AppRoutes.expenses,
-                      ),
-                      _buildDashboardCard(
-                        context,
-                        'Expenses (Advanced)',
                         Icons.analytics,
                         Colors.indigo,
                         AppRoutes.expensesAdvanced,
@@ -201,13 +201,13 @@ class HomeScreen extends StatelessWidget {
                         Colors.red,
                         AppRoutes.about,
                       ),
-                      _buildDashboardCard(
-                        context,
-                        'Tambah Expense',
-                        Icons.add,
-                        Colors.green,
-                        AppRoutes.addExpense,
-                      ),
+                      // _buildDashboardCard(
+                      //   context,
+                      //   'Tambah Expense',
+                      //   Icons.add,
+                      //   Colors.green,
+                      //   AppRoutes.addExpense,
+                      // ),
                       _buildDashboardCard(
                         context,
                         'Kategori',
@@ -221,6 +221,22 @@ class HomeScreen extends StatelessWidget {
                         Icons.pie_chart,
                         Colors.deepPurple,
                         AppRoutes.statistics,
+                      ),
+
+                      _buildDashboardCard(
+                        context,
+                        'Pesan',
+                        Icons.message,
+                        Colors.orange,
+                        null, // tidak ada route dulu
+                      ),
+
+                      _buildDashboardCard(
+                        context,
+                        'Export',
+                        Icons.import_export,
+                        Colors.deepOrange,
+                        null, // tidak ada route dulu
                       ),
                     ],
                   ),
@@ -238,27 +254,39 @@ class HomeScreen extends StatelessWidget {
     String title,
     IconData icon,
     Color color,
-    String route,
+    String? route, // ubah: boleh null
   ) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.pushNamed(context, route),
+    return GestureDetector(
+      onTap: () {
+        if (route != null) {
+          Navigator.pushNamed(context, route);
+        } else {
+          // 🔹 Kalau route null → tampilkan pesan dummy
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Halaman "$title" belum tersedia.'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      child: Card(
+        color: color.withOpacity(0.9),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 4,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: color),
+              Icon(icon, color: Colors.white, size: 40),
               const SizedBox(height: 12),
               Text(
                 title,
-                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
             ],

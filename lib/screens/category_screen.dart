@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart'; // ambil user aktif (lokal)
+import '../services/auth_service.dart';
 import '../services/category_service.dart';
 import '../models/category.dart';
 
@@ -12,7 +12,7 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   final _nameCtrl = TextEditingController();
-  final _srv = CategoryService();
+  final _srv = CategoryService(); // <-- pastikan class ini ada (bagian B)
 
   @override
   void dispose() {
@@ -25,10 +25,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (name.isEmpty) return;
     await _srv.create(userId: uid, name: name);
     _nameCtrl.clear();
-    if (mounted) setState(() {}); // refresh list
+    if (mounted) setState(() {});
   }
 
-  Future<void> _rename(Category c) async {
+  // === GANTI: Category -> CategoryModel
+  Future<void> _rename(CategoryModel c) async {
     final ctrl = TextEditingController(text: c.name);
     final ok = await showDialog<bool>(
       context: context,
@@ -53,11 +54,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
     if (ok == true) {
       await _srv.rename(c.id, ctrl.text.trim());
-      if (mounted) setState(() {}); // refresh list
+      if (mounted) setState(() {});
     }
   }
 
-  Future<void> _delete(Category c) async {
+  // === GANTI: Category -> CategoryModel
+  Future<void> _delete(CategoryModel c) async {
     final ok = await showDialog<bool>(
       context: context,
       builder:
@@ -80,14 +82,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
     if (ok == true) {
       await _srv.delete(c.id);
-      if (mounted) setState(() {}); // refresh list
+      if (mounted) setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: AuthService().currentUser(), // ⬅️ ambil user aktif (async)
+      future: AuthService().currentUser(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -134,8 +136,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ),
               ),
               Expanded(
-                // render list dari Hive via FutureBuilder, refresh dengan setState()
-                child: FutureBuilder<List<Category>>(
+                // === GANTI: List<Category> -> List<CategoryModel>
+                child: FutureBuilder<List<CategoryModel>>(
                   future: _srv.listByUser(uid),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
