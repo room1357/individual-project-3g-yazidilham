@@ -57,11 +57,11 @@
 
 ## Demo APLIKASI
 
-GAMBAR
+<!-- GAMBAR -->
 <img
   src="https://github.com/user-attachments/assets/8351b7b4-d757-4775-9ab3-7e278909ae74"
   alt="Demo Aplikasi"
-  width="720"
+  width="300"
 />
 
 
