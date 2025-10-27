@@ -28,7 +28,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
     if (mounted) setState(() {});
   }
 
-  // ====== Tetap sama tandatangan-nya, tapi ambil uid di dalam ======
   Future<void> _rename(CategoryModel c) async {
     final ctrl = TextEditingController(text: c.name);
     final ok = await showDialog<bool>(
@@ -56,13 +55,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
       final user = await AuthService().currentUser();
       final uid = user?.uid;
       if (uid == null) return;
-
       await _srv.rename(c.id, ctrl.text.trim(), userId: uid);
       if (mounted) setState(() {});
     }
   }
 
-  // ====== Tetap sama tandatangan-nya, tapi ambil uid di dalam ======
   Future<void> _delete(CategoryModel c) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -88,8 +85,43 @@ class _CategoryScreenState extends State<CategoryScreen> {
       final user = await AuthService().currentUser();
       final uid = user?.uid;
       if (uid == null) return;
-
       await _srv.delete(c.id, userId: uid);
+      if (mounted) setState(() {});
+    }
+  }
+
+  // 🔹 Dialog tambah kategori baru
+  Future<void> _showAddDialog(String uid) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Tambah Kategori Baru'),
+            content: TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(
+                labelText: 'Nama kategori',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Tambah'),
+              ),
+            ],
+          ),
+    );
+
+    if (ok == true) {
+      final name = ctrl.text.trim();
+      if (name.isEmpty) return;
+      await _srv.create(userId: uid, name: name);
       if (mounted) setState(() {});
     }
   }
@@ -145,8 +177,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
               ),
               Expanded(
                 child: FutureBuilder<List<CategoryModel>>(
-                  // 👉 Service ini otomatis men-seed default:
-                  // Makanan, Transportasi, Utilitas, Hiburan, Pendidikan
                   future: _srv.listByUser(uid),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -192,6 +222,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ),
               ),
             ],
+          ),
+
+          // 🔹 Tombol Tambah Kategori Besar (Floating Button)
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _showAddDialog(uid),
+            backgroundColor: Colors.blue,
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah Kategori'),
           ),
         );
       },

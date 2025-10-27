@@ -5,8 +5,12 @@ import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// 🔹 Tambah import ini
 import '../services/auth_service.dart';
 import '../models/user_profile.dart';
+import '../services/category_service.dart';
+import '../models/category.dart';
 
 /// ------------ MODEL ------------
 class Expense {
@@ -65,17 +69,13 @@ class AdvancedExpenseListScreen extends StatefulWidget {
 class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
   List<Expense> expenses = [];
   List<Expense> filteredExpenses = [];
-  String selectedCategory = 'Semua';
-  final TextEditingController searchController = TextEditingController();
 
-  final List<String> _categories = const [
-    'Semua',
-    'Makanan',
-    'Transportasi',
-    'Utilitas',
-    'Hiburan',
-    'Pendidikan',
-  ];
+  // 🔹 Kategori dinamis (diambil dari CategoryService per-user)
+  List<String> _categoryNames = []; // contoh: ['Makanan','Transportasi',...]
+  String selectedCategory = 'Semua';
+
+  final TextEditingController searchController = TextEditingController();
+  final _catSrv = CategoryService();
 
   String? _uid; // untuk membedakan user
 
@@ -88,7 +88,18 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
   Future<void> _loadUserAndData() async {
     final user = await AuthService().currentUser();
     _uid = user?.uid ?? 'local-user';
-    await _loadExpenses(); // load dari SharedPreferences
+    await Future.wait([
+      _loadCategories(), // ambil kategori per user
+      _loadExpenses(), // load expense dari SharedPreferences
+    ]);
+  }
+
+  Future<void> _loadCategories() async {
+    if (_uid == null) return;
+    final list = await _catSrv.listByUser(_uid!); // auto seed default
+    setState(() {
+      _categoryNames = list.map((c) => c.name).toList();
+    });
   }
 
   Future<void> _loadExpenses() async {
@@ -145,6 +156,9 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Siapkan list chips filter: 'Semua' + kategori dari service
+    final chipCategories = ['Semua', ..._categoryNames];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pengeluaran Advanced'),
@@ -167,6 +181,12 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
               await _exportExpensesToCsv(data);
             },
           ),
+          // 🔄 Refresh kategori (opsional)
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh kategori',
+            onPressed: _loadCategories,
+          ),
         ],
       ),
       body: Column(
@@ -185,14 +205,14 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
             ),
           ),
 
-          // 🏷️ Kategori filter
+          // 🏷️ Kategori filter (dinamis dari service)
           SizedBox(
             height: 50,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children:
-                  _categories
+                  chipCategories
                       .map(
                         (category) => Padding(
                           padding: const EdgeInsets.only(right: 8),
@@ -369,8 +389,10 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
-    String cat = 'Makanan';
-    DateTime selectedDate = DateTime.now(); // 🔹 TANGGAL DIPILIH USER
+
+    // default kategori: ambil pertama dari _categoryNames (jika ada), fallback 'Makanan'
+    String cat = _categoryNames.isNotEmpty ? _categoryNames.first : 'Makanan';
+    DateTime selectedDate = DateTime.now();
 
     String _fmt(DateTime d) =>
         '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -382,7 +404,6 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) {
-        // 🔹 Pakai StatefulBuilder agar UI di bottom sheet bisa setState sendiri
         return StatefulBuilder(
           builder: (context, setSheetState) {
             return Padding(
@@ -419,17 +440,20 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Kategori
+                  // 🔹 Dropdown kategori dari CategoryService
                   DropdownButtonFormField<String>(
                     value: cat,
                     items:
-                        _categories
-                            .where((c) => c != 'Semua')
+                        (_categoryNames.isEmpty
+                                ? <String>[
+                                  'Makanan',
+                                ] // fallback kalau belum sempat load
+                                : _categoryNames)
                             .map(
                               (c) => DropdownMenuItem(value: c, child: Text(c)),
                             )
                             .toList(),
-                    onChanged: (v) => cat = v ?? 'Makanan',
+                    onChanged: (v) => setSheetState(() => cat = v ?? cat),
                     decoration: const InputDecoration(
                       labelText: 'Kategori',
                       border: OutlineInputBorder(),
@@ -448,7 +472,7 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // 🔹 TANGGAL: tampil + tombol pilih date
+                  // Tanggal
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Tanggal'),
@@ -491,12 +515,12 @@ class _AdvancedExpenseListScreenState extends State<AdvancedExpenseListScreen> {
                             description: desc,
                             category: cat,
                             amount: amt!,
-                            date: selectedDate, // 🔹 PAKAI TANGGAL PILIHAN
+                            date: selectedDate,
                           ),
                         );
                         _filterExpenses();
                       });
-                      _saveExpenses(); // simpan ke SharedPreferences
+                      _saveExpenses(); // simpan expenses per user
                       Navigator.pop(context);
                     },
                     icon: const Icon(Icons.add),
